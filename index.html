@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulasi Machine Learning - Penilaian Risk & Model Fitting</title>
+    <!-- Chart.js untuk Grafik Visualisasi Permasalahan Pemodelan -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        body {
+            background-color: #f1f5f9;
+            color: #334155;
+            padding: 20px;
+        }
+        header {
+            background-color: #0f172a;
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        header h1 {
+            font-size: 1.4rem;
+        }
+        header p {
+            font-size: 0.85rem;
+            color: #94a3b8;
+        }
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        @media (max-width: 900px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        .card h2 {
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            color: #1e293b;
+            border-bottom: 2px solid #f1f5f9;
+            padding-bottom: 8px;
+        }
+        .form-group {
+            margin-bottom: 12px;
+        }
+        label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        input, select, button {
+            width: 100%;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #cbd5e1;
+            font-size: 0.9rem;
+        }
+        button {
+            background-color: #2563eb;
+            color: white;
+            font-weight: bold;
+            border: none;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: 0.2s;
+        }
+        button:hover {
+            background-color: #1d4ed8;
+        }
+        .result-box {
+            margin-top: 15px;
+            padding: 12px;
+            border-radius: 6px;
+            background-color: #f8fafc;
+            border-left: 4px solid #2563eb;
+            display: none;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: bold;
+            color: white;
+        }
+        .badge-supervised { background-color: #10b981; }
+        .badge-warning { background-color: #f59e0b; }
+        .badge-danger { background-color: #ef4444; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div>
+            <h1>Interactive Machine Learning Studio</h1>
+            <p>Studi Kasus: Algoritma Supervised Learning & Diagnostik Overfitting/Underfitting</p>
+        </div>
+        <span class="badge badge-supervised">Supervised Learning</span>
+    </header>
+
+    <div class="main-grid">
+        <!-- MODUL 1: SIMULASI PREDIKSI SUPERVISED LEARNING -->
+        <div class="card">
+            <h2>1. Simulasi Prediksi Model (Supervised Learning)</h2>
+            <p style="font-size: 0.8rem; color: #64748b; margin-bottom: 15px;">
+                Memodelkan prediksi kelayakan berdasarkan data berlabel (Fitur: Skor Pengalaman & Hasil Ujian).
+            </p>
+            <form id="predictionForm">
+                <div class="form-group">
+                    <label for="exp">Skor Pengalaman / Latihan (1 - 100):</label>
+                    <input type="number" id="exp" min="1" max="100" value="75" required>
+                </div>
+                <div class="form-group">
+                    <label for="score">Skor Ujian / Evaluasi (1 - 100):</label>
+                    <input type="number" id="score" min="1" max="100" value="80" required>
+                </div>
+                <button type="button" onclick="predictModel()">Jalankan Prediksi Model</button>
+            </form>
+
+            <div id="resultBox" class="result-box">
+                <h4>Hasil Evaluasi Prediksi:</h4>
+                <p id="predResult" style="font-weight: bold; font-size: 1rem; margin-top: 5px;"></p>
+                <p id="predDetail" style="font-size: 0.85rem; color: #475569; margin-top: 5px;"></p>
+            </div>
+        </div>
+
+        <!-- MODUL 2: DIAGNOSTIK OVERFITTING & UNDERFITTING -->
+        <div class="card">
+            <h2>2. Visualisasi Permasalahan Pemodelan</h2>
+            <div class="form-group">
+                <label for="modelState">Pilih Kondisi Kompleksitas Model:</label>
+                <select id="modelState" onchange="updateChart()">
+                    <option value="underfitting">Underfitting (Model Terlalu Sederhana)</option>
+                    <option value="optimal" selected>Optimal / Fit (Model Sesuai)</option>
+                    <option value="overfitting">Overfitting (Model Terlalu Menyesuaikan Data Latih)</option>
+                </select>
+            </div>
+
+            <canvas id="fittingChart" height="180"></canvas>
+
+            <div id="stateExplanation" style="margin-top: 15px; font-size: 0.85rem; line-height: 1.4; color: #334155;">
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- MODUL 1: LOGIKA PREDIKSI SIMPLE SUPERVISED LEARNING ---
+        function predictModel() {
+            const exp = parseFloat(document.getElementById('exp').value);
+            const score = parseFloat(document.getElementById('score').value);
+            
+            // Formula Sederhana (Simulasi Bobot Machine Learning: Y = w1*X1 + w2*X2)
+            const probability = (exp * 0.4) + (score * 0.6);
+            
+            const resultBox = document.getElementById('resultBox');
+            const predResult = document.getElementById('predResult');
+            const predDetail = document.getElementById('predDetail');
+            
+            resultBox.style.display = 'block';
+
+            if (probability >= 70) {
+                predResult.innerHTML = "<span style='color: #10b981;'>LULUS / LAYAK (High Performance)</span>";
+                predDetail.innerText = `Skor Probabilitas Model: ${probability.toFixed(1)}%. Model memprediksi hasil positif berdasarkan data latih berlabel.`;
+            } else {
+                predResult.innerHTML = "<span style='color: #ef4444;'>TIDAK LULUS / RISIKO (Low Performance)</span>";
+                predDetail.innerText = `Skor Probabilitas Model: ${probability.toFixed(1)}%. Perlu penambahan data latihan atau perbaikan fitur.`;
+            }
+        }
+
+        // --- MODUL 2: VISUALISASI CHART OVERFITTING & UNDERFITTING ---
+        let fittingChart;
+
+        function initChart() {
+            const ctx = document.getElementById('fittingChart').getContext('2d');
+            fittingChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Epoch 1', 'Epoch 2', 'Epoch 3', 'Epoch 4', 'Epoch 5', 'Epoch 6'],
+                    datasets: [
+                        {
+                            label: 'Akurasi Data Latih (Training)',
+                            data: [60, 70, 80, 85, 90, 95],
+                            borderColor: '#2563eb',
+                            tension: 0.2,
+                            fill: false
+                        },
+                        {
+                            label: 'Akurasi Data Uji (Validation/Testing)',
+                            data: [58, 68, 78, 82, 84, 85],
+                            borderColor: '#10b981',
+                            tension: 0.2,
+                            fill: false
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            min: 40,
+                            max: 100,
+                            title: { display: true, text: 'Akurasi (%)' }
+                        }
+                    }
+                }
+            });
+            updateChart();
+        }
+
+        function updateChart() {
+            const state = document.getElementById('modelState').value;
+            const expDiv = document.getElementById('stateExplanation');
+
+            if (state === 'underfitting') {
+                fittingChart.data.datasets[0].data = [45, 48, 50, 52, 53, 55];
+                fittingChart.data.datasets[1].data = [42, 45, 48, 50, 51, 52];
+                expDiv.innerHTML = `
+                    <p><b>⚠️ Status: Underfitting</b></p>
+                    <p>Model terlalu sederhana sehingga gagal mempelajari pola bahkan pada data latihan. Akurasi data latih dan data uji sama-sama rendah. Solusi: Tambah fitur atau gunakan model yang lebih kompleks.</p>
+                `;
+            } else if (state === 'optimal') {
+                fittingChart.data.datasets[0].data = [60, 72, 80, 86, 90, 93];
+                fittingChart.data.datasets[1].data = [58, 70, 78, 84, 87, 89];
+                expDiv.innerHTML = `
+                    <p><b>✅ Status: Optimal / Good Fit</b></p>
+                    <p>Model mempelajari pola dengan baik. Akurasi data latih dan data uji tinggi dan seimbang, menunjukkan generalisasi model yang baik pada data baru.</p>
+                `;
+            } else if (state === 'overfitting') {
+                fittingChart.data.datasets[0].data = [65, 80, 92, 97, 99, 100];
+                fittingChart.data.datasets[1].data = [62, 75, 78, 72, 65, 58];
+                expDiv.innerHTML = `
+                    <p><b>🛑 Status: Overfitting</b></p>
+                    <p>Model terlalu menyesuaikan diri dengan data latih (menghafal noise). Akurasi data latih sangat tinggi (100%), tetapi akurasi pada data baru/uji justru menurun drastis. Solusi: Tambah data latihan, sederhanakan model, atau gunakan teknik Regularization & Cross-Validation.</p>
+                `;
+            }
+            fittingChart.update();
+        }
+
+        // Jalankan Chart saat halaman dimuat
+        window.onload = initChart;
+    </script>
+</body>
+</html>
